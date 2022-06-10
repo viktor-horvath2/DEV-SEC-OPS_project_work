@@ -1,0 +1,32 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+VAGRANTFILE_API_VERSION = "2"
+Vagrant.require_version ">= 1.6.0"
+
+Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
+  config.vm.provider "virtualbox" do |v|
+    v.memory = 4096
+    v.cpus = 1
+    v.gui = true
+  end
+
+  config.vm.box = "generic/ubuntu2204"
+  config.vm.box_check_update = true
+  config.vm.synced_folder "./vagrantshare", "/vagrant", disabled: false
+  config.vm.provision "docker" do |d|
+    d.pull_images "jenkins/jenkins:lts-jdk11"
+  end
+
+  config.vm.network "forwarded_port", guest: 8080, host: 58080, host_ip: "127.0.0.1"
+  config.ssh.insert_key = true
+
+  config.vm.provision "shell", inline: <<-SHELL
+     docker run -d --name myjenkins -v jenkins_home:/var/jenkins_home -p 8080:8080 -p 50000:50000 --restart always jenkins/jenkins:lts-jdk11
+     echo 'the initial Jenkins admin password is: '
+     sleep 10
+     #docker exec myjenkins cat /var/jenkins_home/secrets/initialAdminPassword
+     sudo cat /var/lib/docker/volumes/jenkins_home/_data/secrets/initialAdminPassword
+     echo 'browse to http://localhost:58080 on your host machine and start Jenkins configuration'
+  SHELL
+end
