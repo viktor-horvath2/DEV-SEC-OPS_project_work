@@ -23,4 +23,4 @@ My Solution:
 	1. Created a Service Principal in my pirvate Azure subscription for Terraform. Granted Subscription level write/read/delete permissions to this SP. Terraform uses this SP with certificate based authentication to manage my Azure infrastructure.
 	2. Developed an Azure infra in Terraform HCL language. The IaC uses remote state backend also stored in Azure (secured Blob Storage also deployed via TF).
 	3. Created a Vagrant based VM environment that uses VirtualBox as provider. My Vagrantifle contains a setup to run the latest LTS Jenkins CI/CD tool from official Docker Hub image. The docker server runs inside an Ubuntu server VM.
-	4. Created this public Github repository to represent my achivements and made it available for mentor verification/re-testing and validation purposes.
+	4. Created this public Github repository to represent my achivements and made it publicly available for mentor verification/re-testing and validation purposes. The default branch (master) is protected.
