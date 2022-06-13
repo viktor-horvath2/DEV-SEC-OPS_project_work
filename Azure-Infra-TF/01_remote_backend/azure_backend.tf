@@ -1,3 +1,9 @@
+variable "arm_client_id" {}
+variable "arm_client_certificate_path" {}
+variable "arm_client_certificate_password" {}
+variable "arm_subscription_id" {}
+variable "arm_tenant_id" {}
+
 variable "region" {
   type        = string
   default     = "westeurope"
