@@ -39,11 +39,11 @@ provider "azurerm" {
 }
 
 resource "random_string" "resource_code" {
-  length  = 2
-  upper   = false
-  number  = true
-  lower   = true
-  special = false
+  length   = 2
+  upper    = false
+  numeric  = true
+  lower    = true
+  special  = false
 }
 
 resource "azurerm_resource_group" "rg" {
