@@ -16,13 +16,24 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   config.vm.synced_folder "./vagrantshare", "/vagrant", disabled: false
   config.vm.provision "docker" do |d|
     d.pull_images "jenkins/jenkins:lts-jdk11"
+    d.build_image "/vagrant/",
+      args: "-t myjenkins-blueocean-azurecli"
   end
 
   config.vm.network "forwarded_port", guest: 8080, host: 58080, host_ip: "127.0.0.1"
   config.ssh.insert_key = true
 
   config.vm.provision "shell", inline: <<-SHELL
-     docker run -d --name myjenkins -v jenkins_home:/var/jenkins_home -p 8080:8080 -p 50000:50000 --restart always jenkins/jenkins:lts-jdk11
+     sleep 2
+     docker rm -f $(docker ps -a -q)
+     docker run \
+      --name myjenkins \
+      --restart=on-failure \
+      --detach \
+      --publish 8080:8080 \
+      --publish 50000:50000 \
+      --volume jenkins_home:/var/jenkins_home \
+      myjenkins-blueocean-azurecli
      echo 'the initial Jenkins admin password is: '
      sleep 10
      #docker exec myjenkins cat /var/jenkins_home/secrets/initialAdminPassword

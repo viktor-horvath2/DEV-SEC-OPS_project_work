@@ -79,6 +79,8 @@ resource "azurerm_storage_account" "sa" {
       terraform   = "true"
       deployed_by = "Terraform_SP"
   }
+
+  depends_on [azurerm_resource_group.rg]
 }
 
 resource "azurerm_storage_container" "container" {
