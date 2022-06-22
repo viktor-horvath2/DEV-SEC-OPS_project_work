@@ -21,6 +21,6 @@ POLICY_RULE
 
 resource "azurerm_resource_group_policy_assignment" "location_policy_to_rg" {
   name                 = "allowed_location-policy-assignment"
-  resource_id          = var.RG.id
+  resource_group_id    = var.RG.id
   policy_definition_id = azurerm_policy_definition.allowed_location_check.id
 }
