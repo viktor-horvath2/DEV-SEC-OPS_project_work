@@ -1,7 +1,8 @@
 resource "azurerm_policy_definition" "allowed_location_check" {
-  name        = "only-deploy-in-westeurope"
-  policy_type = "Custom"
-  mode        = "All"
+  name         = "only-deploy-in-westeurope"
+  display_name = "only-deploy-in-westeurope"
+  policy_type  = "Custom"
+  mode         = "All"
 
   policy_rule = <<POLICY_RULE
     {
