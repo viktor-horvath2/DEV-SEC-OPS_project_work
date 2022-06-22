@@ -222,7 +222,7 @@ resource "azurerm_network_security_group" "bastion" {
     protocol                   = "Tcp"
     source_port_range          = "*"
     destination_port_ranges    = ["8080", "5701"]
-    source_address_prefix      = "10.0.2.0/24"
+    source_address_prefix      = "*"
     destination_address_prefix = "10.0.1.0/24"
   }
 
@@ -238,7 +238,7 @@ resource "azurerm_network_security_group" "bastion" {
     source_address_prefix      = "*"
     destination_address_prefix = "Internet"
   }
-  
+
   tags = {
     terraform   = "true"
     deployed_by = "Terraform_SP"
