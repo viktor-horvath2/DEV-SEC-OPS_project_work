@@ -201,6 +201,11 @@ resource "azurerm_network_watcher" "nwwatcher" {
   depends_on = [azurerm_resource_group.nwwatcher-RG]
 }
 
+resource "tls_private_key" "ssh_key" {
+  algorithm = "RSA"
+  rsa_bits  = 4096
+}
+
 resource "azurerm_linux_virtual_machine" "nginx" {
   name                            = "nginx-bitnami-vm"
   location                        = var.resource_region
@@ -212,7 +217,7 @@ resource "azurerm_linux_virtual_machine" "nginx" {
 
   admin_ssh_key {
     username   = "adminuser"
-    public_key = file("~/.ssh/id_rsa.pub")
+    public_key = tls_private_key.ssh_key.public_key_openssh
   }
 
   source_image_reference {
@@ -243,4 +248,9 @@ resource "azurerm_linux_virtual_machine" "nginx" {
 
 output "public_IP_of_the_nginx_VM" {
   value       = "${azurerm_linux_virtual_machine.nginx.public_ip_address}"
+}
+
+output "tls_private_key" {
+  value     = tls_private_key.ssh_key.private_key_pem
+  sensitive = true
 }
