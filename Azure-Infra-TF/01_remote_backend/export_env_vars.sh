@@ -1,6 +1,6 @@
 #!/bin/bash
 #TF_VAR_RG:
-echo $(../../terraform show | egrep resource_group_name | sed -r 's/\\[nrt]//g') >> ../02_resources/config.tfbackend
+echo $(../../terraform show | egrep resource_group_name | tr -d '[:blank:]') >> ../02_resources/config.tfbackend
 #TF_VAR_SA:
 echo $(../../terraform show | egrep storage_account_name | tr -d '[:blank:]') >> ../02_resources/config.tfbackend
 cd ../02_resources
