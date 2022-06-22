@@ -1,7 +1,3 @@
-variable "RG" {
-  type        = string
-}
-
 resource "azurerm_policy_definition" "allowed_location_check" {
   name        = "only-deploy-in-westeurope"
   policy_type = "Custom"
