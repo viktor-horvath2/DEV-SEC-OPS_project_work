@@ -1,4 +1,4 @@
-#insecure
+#secure
 variable "arm_client_id" {}
 variable "arm_client_secret" {}
 variable "arm_subscription_id" {}
@@ -63,8 +63,8 @@ module "vnet" {
   subnet_names        = ["prod", "bastion"]
 
   nsg_ids = {
-    prod = azurerm_network_security_group.TF-NSG.id
-    bastion = azurerm_network_security_group.TF-NSG.id
+    prod = azurerm_network_security_group.PROD.id
+    bastion = azurerm_network_security_group.bastion.id
   }
 
 
@@ -77,13 +77,13 @@ module "vnet" {
 }
 
 
-resource "azurerm_network_security_group" "TF-NSG" {
-  name                = "TF-NSG"
+resource "azurerm_network_security_group" "PROD" {
+  name                = "PROD"
   location            = var.resource_region
   resource_group_name = var.RG
 
   security_rule {
-    name                       = "TCP_80_in_allow"
+    name                       = "HTTP_80_in_allow"
     priority                   = 100
     direction                  = "Inbound"
     access                     = "Allow"
@@ -94,23 +94,47 @@ resource "azurerm_network_security_group" "TF-NSG" {
     destination_address_prefix = "*"
   }
 
-    security_rule {
-    name                       = "SSH_22_in_allow"
+  security_rule {
+    name                       = "SSH_22_in_bastion_allow"
     priority                   = 101
     direction                  = "Inbound"
     access                     = "Allow"
     protocol                   = "Tcp"
     source_port_range          = "*"
     destination_port_range     = "22"
-    source_address_prefix      = "*"
-    destination_address_prefix = "*"
+    source_address_prefix      = "10.0.2.0/24"
+    destination_address_prefix = "10.0.1.0/24"
   }
 
   tags = {
     terraform   = "true"
     deployed_by = "Terraform_SP"
   }
+  
+  depends_on = [azurerm_resource_group.RG]
+}
 
+resource "azurerm_network_security_group" "bastion" {
+  name                = "bastion"
+  location            = var.resource_region
+  resource_group_name = var.RG
+
+    security_rule {
+    name                       = "SSH_22_out_prod_allow"
+    priority                   = 100
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "22"
+    source_address_prefix      = "10.0.2.0/24"
+    destination_address_prefix = "10.0.1.0/24"
+  }
+
+  tags = {
+    terraform   = "true"
+    deployed_by = "Terraform_SP"
+  }
   depends_on = [azurerm_resource_group.RG]
 }
 
@@ -146,12 +170,12 @@ resource "azurerm_network_interface" "nginx-net" {
     deployed_by = "Terraform_SP"
   }
 
-  depends_on = [module.vnet]
 }
 
-resource "azurerm_network_interface_security_group_association" "nginx-nic-nsg" {
+
+resource "azurerm_network_interface_security_group_association" "nginx-nic-PROD" {
   network_interface_id      = azurerm_network_interface.nginx-net.id
-  network_security_group_id = azurerm_network_security_group.TF-NSG.id
+  network_security_group_id = azurerm_network_security_group.PROD.id
 }
 
 resource "azurerm_resource_group" "nwwatcher-RG" {
@@ -182,10 +206,14 @@ resource "azurerm_linux_virtual_machine" "nginx" {
   location                        = var.resource_region
   resource_group_name             = var.RG
   size                            = "Standard_D2d_v4"
-  disable_password_authentication = false
+  disable_password_authentication = true
   admin_username                  = "adminuser"
-  admin_password                  = "SuperEaseyP4ssword1234!_"
   network_interface_ids           = [azurerm_network_interface.nginx-net.id]
+
+  admin_ssh_key {
+    username   = "adminuser"
+    public_key = file("~/.ssh/id_rsa.pub")
+  }
 
   source_image_reference {
     publisher = "bitnami"
@@ -193,7 +221,6 @@ resource "azurerm_linux_virtual_machine" "nginx" {
     sku       = "1-9"
     version   = "latest"
   }
-
 
   plan {
     name = "1-9"
