@@ -170,8 +170,8 @@ resource "azurerm_network_security_group" "bastion" {
     protocol                   = "Tcp"
     source_port_range          = "*"
     destination_port_ranges    = ["8080", "5701"]
-    source_address_prefix      = "10.0.2.0/24"
-    destination_address_prefix = "10.0.1.0/24"
+    source_address_prefix      = "VirtualNetwork"
+    destination_address_prefix = "VirtualNetwork"
   }
 
   security_rule {
@@ -199,7 +199,7 @@ resource "azurerm_network_security_group" "bastion" {
     source_port_range          = "*"
     destination_port_ranges    = ["3389", "22"]
     source_address_prefix      = "*"
-    destination_address_prefix = "10.0.1.0/24"
+    destination_address_prefix = "VirtualNetwork"
   }
   # Egress traffic to AzureCloud over 443
   security_rule {
@@ -223,7 +223,7 @@ resource "azurerm_network_security_group" "bastion" {
     source_port_range          = "*"
     destination_port_ranges    = ["8080", "5701"]
     source_address_prefix      = "*"
-    destination_address_prefix = "10.0.1.0/24"
+    destination_address_prefix = "VirtualNetwork"
   }
 
   # Egress traffic for SessionInformation
