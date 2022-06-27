@@ -1,0 +1,123 @@
+pipeline {
+    agent any
+    stages {
+        stage('Clone') {
+            steps { // Clone the project-work repository
+                cleanWs()
+                git 'https://github.com/viktor-horvath2/DEV-SEC-OPS_project_work.git'  
+            }
+        }
+        stage('TF-Download') {
+            steps { // Download Terraform
+                sh label: '', script: 'curl https://releases.hashicorp.com/terraform/1.2.2/terraform_1.2.2_linux_amd64.zip \
+                    --output terraform_1.2.2_linux_amd64.zip \
+                    && unzip terraform_1.2.2_linux_amd64.zip'
+            }
+        }
+        stage('Backend-Init') {
+            steps { // Initialize the Terraform backend configuration
+                dir('Azure-Infra-TF/01_remote_backend') {
+                    sh script: '../../terraform init -input=false'
+                }
+            }
+        }
+        stage('Backend-Plan') {
+            steps { // Create Terraform plan for backend resources
+                withCredentials([string(credentialsId: 'ARM_CLIENT_ID', variable: 'ARM_CLIENT_ID'),
+                                string(credentialsId: 'ARM_CLIENT_SECRET', variable: 'ARM_CLIENT_SECRET'),
+                                string(credentialsId: 'ARM_SUBSCRIPTION_ID', variable: 'ARM_SUBSCRIPTION_ID'),
+                                string(credentialsId: 'ARM_TENANT_ID', variable: 'ARM_TENANT_ID')]) {
+                    dir('Azure-Infra-TF/01_remote_backend') {
+                        sh script: ''' set +x
+                                ../../terraform plan \
+                                -out backend.tfplan \
+                                -var="arm_client_id=$ARM_CLIENT_ID" \
+                                -var="arm_client_secret=$ARM_CLIENT_SECRET" \
+                                -var="arm_subscription_id=$ARM_SUBSCRIPTION_ID" \
+                                -var="arm_tenant_id=$ARM_TENANT_ID"
+                        '''  
+                    }
+                }
+            }
+        }
+        stage('Backend-Deployment'){
+            steps { 
+                input (message: "Check the plan output. Can it be applied?")
+                withCredentials([string(credentialsId: 'ARM_CLIENT_ID', variable: 'ARM_CLIENT_ID'),
+                                string(credentialsId: 'ARM_CLIENT_SECRET', variable: 'ARM_CLIENT_SECRET'),
+                                string(credentialsId: 'ARM_SUBSCRIPTION_ID', variable: 'ARM_SUBSCRIPTION_ID'),
+                                string(credentialsId: 'ARM_TENANT_ID', variable: 'ARM_TENANT_ID')]) {
+                                    // Deploying Terraform remote backend resources
+                                    dir('Azure-Infra-TF/01_remote_backend') {
+                                        sh script: ''' set +x
+                                            ../../terraform apply backend.tfplan
+                                            echo 'Exporting backend configuration \n'
+                                            chmod +x ./export_env_vars.sh
+                                            ./export_env_vars.sh
+                                        '''
+                                    }
+                }
+            }
+        }
+        stage('Infra-config-Init') {
+            steps {// Terraform initialization sets the remote backend for the infra
+                    withCredentials([string(credentialsId: 'ARM_CLIENT_ID', variable: 'ARM_CLIENT_ID'),
+                                string(credentialsId: 'ARM_CLIENT_SECRET', variable: 'ARM_CLIENT_SECRET'),
+                                string(credentialsId: 'ARM_SUBSCRIPTION_ID', variable: 'ARM_SUBSCRIPTION_ID'),
+                                string(credentialsId: 'ARM_TENANT_ID', variable: 'ARM_TENANT_ID')]) {
+                                    dir('Azure-Infra-TF/02_resources') {
+                                        sh script: ''' set +x
+                                                ../../terraform init -input=false \
+                                                    -var="arm_client_id=$ARM_CLIENT_ID" \
+                                                    -var="arm_client_secret=$ARM_CLIENT_SECRET" \
+                                                    -var="arm_subscription_id=$ARM_SUBSCRIPTION_ID" \
+                                                    -var="arm_tenant_id=$ARM_TENANT_ID" \
+                                                    -backend-config=./config.tfbackend
+                                            '''
+                                    }
+                                }
+            }
+        }
+        stage('Infra-sec-check') {
+            steps {// IaC security check
+                     sh label: 'TFsec scan', script: '''
+                     mkdir ./tfsec
+                     curl -LJO https://github.com/aquasecurity/tfsec/releases/download/v1.26.0/tfsec_1.26.0_linux_amd64.tar.gz \
+                        --output tfsec_1.26.0_linux_amd64.tar.gz && \
+                        tar xvzf tfsec_1.26.0_linux_amd64.tar.gz -C ./tfsec
+                     ./tfsec/tfsec ./Azure-Infra-TF/02_resources/ || true
+                    '''
+            }
+        }
+        stage('Config-Apply') {
+            steps {// Apply the configuration
+                    input (message: "Check the security scan output. Do you approve planning?")
+                    withCredentials([string(credentialsId: 'ARM_CLIENT_ID', variable: 'ARM_CLIENT_ID'),
+                                string(credentialsId: 'ARM_CLIENT_SECRET', variable: 'ARM_CLIENT_SECRET'),
+                                string(credentialsId: 'ARM_SUBSCRIPTION_ID', variable: 'ARM_SUBSCRIPTION_ID'),
+                                string(credentialsId: 'ARM_TENANT_ID', variable: 'ARM_TENANT_ID')]) {
+                                    dir('Azure-Infra-TF/02_resources') {
+                                        sh script: ''' set +x
+                                                    ../../terraform plan \
+                                                    -out s1.tfplan \
+                                                    -var="arm_client_id=$ARM_CLIENT_ID" \
+                                                    -var="arm_client_secret=$ARM_CLIENT_SECRET" \
+                                                    -var="arm_subscription_id=$ARM_SUBSCRIPTION_ID" \
+                                                    -var="arm_tenant_id=$ARM_TENANT_ID"
+                                                '''
+                                    }
+                                }
+                    input 'Deploy?'
+                    withCredentials([string(credentialsId: 'ARM_CLIENT_ID', variable: 'ARM_CLIENT_ID'),
+                                string(credentialsId: 'ARM_CLIENT_SECRET', variable: 'ARM_CLIENT_SECRET'),
+                                string(credentialsId: 'ARM_SUBSCRIPTION_ID', variable: 'ARM_SUBSCRIPTION_ID'),
+                                string(credentialsId: 'ARM_TENANT_ID', variable: 'ARM_TENANT_ID')]) {
+                                    dir('Azure-Infra-TF/02_resources') {
+                                        sh script: '../../terraform apply s1.tfplan'
+                                    }
+                                }
+            }
+        }
+
+    }
+}
