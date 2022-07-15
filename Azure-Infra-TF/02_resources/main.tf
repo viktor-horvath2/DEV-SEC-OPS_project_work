@@ -35,6 +35,10 @@ terraform {
       source  = "hashicorp/azurerm"
       version = "3.9.0"
     }
+    curl = {
+      source = "anschoewe/curl"
+      version = "1.0.2"
+    }
   }
   
   backend "azurerm" {
