@@ -1,6 +1,33 @@
 pipeline { // destroy
     agent any
     stages {
+        stage('Destroy-function'){ 
+            steps {
+                input 'Destroy policy-check Function App?'
+                    dir('/var/jenkins_home/workspace/AZ_test@2/Azure-Infra-TF/03_policy_check') {
+                        sh script: '''
+                                rm -rf ./policy-check.tf || true
+                            '''
+                    }
+                withCredentials([string(credentialsId: 'ARM_CLIENT_ID', variable: 'ARM_CLIENT_ID'),
+                                string(credentialsId: 'ARM_CLIENT_SECRET', variable: 'ARM_CLIENT_SECRET'),
+                                string(credentialsId: 'ARM_SUBSCRIPTION_ID', variable: 'ARM_SUBSCRIPTION_ID'),
+                                string(credentialsId: 'ARM_TENANT_ID', variable: 'ARM_TENANT_ID')]) {
+                    dir('/var/jenkins_home/workspace/AZ_test@2/Azure-Infra-TF/03_policy_check') {
+                        sh script: ''' set +x
+                                ../../terraform apply \
+                                                    -auto-approve \
+                                                    -var="arm_client_id=$ARM_CLIENT_ID" \
+                                                    -var="arm_client_secret=$ARM_CLIENT_SECRET" \
+                                                    -var="arm_subscription_id=$ARM_SUBSCRIPTION_ID" \
+                                                    -var="arm_tenant_id=$ARM_TENANT_ID" || true
+                                echo "Cleaning up policy directory."
+                                rm -rf *.tf variables.auto.tfvars || true
+                            '''
+                    }
+                }
+            }
+        }
         stage('Destroy-Infra'){ 
             steps {
                 input 'Destroy Infra?'
@@ -10,6 +37,12 @@ pipeline { // destroy
                                 string(credentialsId: 'ARM_TENANT_ID', variable: 'ARM_TENANT_ID')]) {
                     dir('/var/jenkins_home/workspace/AZ_test@2/Azure-Infra-TF/02_resources') {
                         sh script: ''' set +x
+                                ../../terraform init -upgrade -input=false \
+                                                    -var="arm_client_id=$ARM_CLIENT_ID" \
+                                                    -var="arm_client_secret=$ARM_CLIENT_SECRET" \
+                                                    -var="arm_subscription_id=$ARM_SUBSCRIPTION_ID" \
+                                                    -var="arm_tenant_id=$ARM_TENANT_ID" \
+                                                    -backend-config=./config.tfbackend || true
                                 ../../terraform destroy \
                                                     -auto-approve \
                                                     -var="arm_client_id=$ARM_CLIENT_ID" \
