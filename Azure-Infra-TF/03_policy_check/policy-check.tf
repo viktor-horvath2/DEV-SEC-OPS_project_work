@@ -1,30 +1,5 @@
 #functionapp
 
-variable "arm_client_id" {}
-variable "arm_client_secret" {}
-variable "arm_subscription_id" {}
-variable "arm_tenant_id" {}
-
-terraform {
-  required_providers {
-    azurerm = {
-      source  = "hashicorp/azurerm"
-      version = "3.9.0"
-    }
-    curl = {
-      source = "anschoewe/curl"
-      version = "1.0.2"
-    }
-  }
-
-  backend "azurerm" {
-  }
-}
-
-provider "azurerm" {
-  features {}
-}
-
 provider "curl" {
 }
 
