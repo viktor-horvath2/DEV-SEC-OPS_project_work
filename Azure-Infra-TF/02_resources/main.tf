@@ -301,7 +301,7 @@ resource "azurerm_resource_group" "nwwatcher-RG" {
 }
 
 resource "azurerm_network_watcher" "nwwatcher" {
-  name                = "nwwatcher"
+  name                = "NetworkWatcher_${var.resource_region}"
   location            = azurerm_resource_group.nwwatcher-RG.location
   resource_group_name = azurerm_resource_group.nwwatcher-RG.name
 
