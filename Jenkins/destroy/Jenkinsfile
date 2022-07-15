@@ -1,4 +1,4 @@
-pipeline {
+pipeline { // destroy
     agent any
     stages {
         stage('Destroy-Infra'){ 

@@ -1,4 +1,4 @@
-pipeline {
+pipeline { // base
     agent any
     stages {
         stage('Clone') {
