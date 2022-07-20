@@ -28,6 +28,13 @@ variable "company" {
   type        = string
 }
 
+locals {
+  # Common tags to be assigned to all resources
+  common_tags = {
+    terraform   = "true"
+    deployed_by = "Terraform_SP"
+  }
+}
 
 terraform {
   required_providers {
@@ -53,10 +60,7 @@ resource "azurerm_resource_group" "RG" {
   name     = var.RG
   location = var.resource_region
 
-  tags = {
-      terraform   = "true"
-      deployed_by = "Terraform_SP"
-  }
+  tags = local.common_tags
 }
 
 module "vnet" {
@@ -71,12 +75,7 @@ module "vnet" {
     AzureBastionSubnet = azurerm_network_security_group.bastion.id
   }
 
-
-  tags = {
-    terraform   = "true"
-    deployed_by = "Terraform_SP"
-  }
-
+  tags = local.common_tags
   depends_on = [azurerm_resource_group.RG]
 }
 
@@ -110,11 +109,55 @@ resource "azurerm_network_security_group" "PROD" {
     destination_address_prefix = "10.0.1.0/24"
   }
 
-  tags = {
-    terraform   = "true"
-    deployed_by = "Terraform_SP"
+  security_rule {
+    name                       = "AllowAzureLoadBalancerInBound-TCP80"
+    priority                   = 4093
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "80"
+    source_address_prefix      = "AzureLoadBalancer"
+    destination_address_prefix = "VirtualNetwork"
   }
-  
+
+    security_rule {
+    name                       = "BlockAzureLoadBalancerInBound"
+    priority                   = 4094
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "AzureLoadBalancer"
+    destination_address_prefix = "VirtualNetwork"
+  }
+
+  security_rule {
+    name                       = "BlockVirtualNetwork"
+    priority                   = 4095
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "VirtualNetwork"
+    destination_address_prefix = "VirtualNetwork"
+  }
+
+    security_rule {
+    name                       = "DenyAllOutBound"
+    priority                   = 4096
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+  }
+
+  tags = local.common_tags
   depends_on = [azurerm_resource_group.RG]
 }
 
@@ -243,10 +286,7 @@ resource "azurerm_network_security_group" "bastion" {
     destination_address_prefix = "Internet"
   }
 
-  tags = {
-    terraform   = "true"
-    deployed_by = "Terraform_SP"
-  }
+  tags = local.common_tags
   depends_on = [azurerm_resource_group.RG]
 }
 
@@ -256,11 +296,7 @@ resource azurerm_public_ip "public-IP-nginx" {
   resource_group_name   = var.RG
   allocation_method      = "Dynamic"
 
-  tags = {
-    terraform   = "true"
-    deployed_by = "Terraform_SP"
-  }
-
+  tags = local.common_tags
   depends_on = [azurerm_resource_group.RG]
 }
 
@@ -277,11 +313,7 @@ resource "azurerm_network_interface" "nginx-net" {
     public_ip_address_id           = azurerm_public_ip.public-IP-nginx.id
   }
   
-  tags = {
-    terraform   = "true"
-    deployed_by = "Terraform_SP"
-  }
-
+  tags = local.common_tags
 }
 
 
@@ -294,10 +326,7 @@ resource "azurerm_resource_group" "nwwatcher-RG" {
   name     = "NetworkWatcherRG"
   location = var.resource_region
 
-  tags = {
-    terraform   = "true"
-    deployed_by = "Terraform_SP"
-  }
+  tags = local.common_tags
 }
 
 resource "azurerm_network_watcher" "nwwatcher" {
@@ -305,11 +334,7 @@ resource "azurerm_network_watcher" "nwwatcher" {
   location            = azurerm_resource_group.nwwatcher-RG.location
   resource_group_name = azurerm_resource_group.nwwatcher-RG.name
 
-  tags = {
-    terraform   = "true"
-    deployed_by = "Terraform_SP"
-  }
-
+  tags = local.common_tags
   depends_on = [azurerm_resource_group.nwwatcher-RG]
 }
 
@@ -351,18 +376,44 @@ resource "azurerm_linux_virtual_machine" "nginx" {
     storage_account_type = "Standard_LRS"
   }
   
-  
-  tags = {
-    terraform   = "true"
-    deployed_by = "Terraform_SP"
-  }
+  tags = local.common_tags
 }
 
 output "public_IP_of_the_nginx_VM" {
   value       = "${azurerm_linux_virtual_machine.nginx.public_ip_address}"
 }
 
-output "tls_private_key" {
+output "nginx-vm_private_key" {
   value     = tls_private_key.ssh_key.private_key_pem
   sensitive = true
+}
+
+# * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+#   Bastion related TF resources
+# * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+
+resource "azurerm_public_ip" "bastion-ip" {
+  name                = "bastion-ip"
+  location            = var.resource_region
+  resource_group_name = var.RG
+  allocation_method   = "Static"
+  sku                 = "Standard"
+
+  tags = local.common_tags
+  depends_on = [azurerm_resource_group.RG]
+}
+
+resource "azurerm_bastion_host" "bastion-host" {
+  name                = "bastion-host"
+  location            = var.resource_region
+  resource_group_name = var.RG
+  sku                 = "Basic"
+
+  ip_configuration {
+    name                 = "bastion-configuration"
+    subnet_id            = module.vnet.vnet_subnets.1
+    public_ip_address_id = azurerm_public_ip.bastion-ip.id
+  }
+
+  tags = local.common_tags
 }
