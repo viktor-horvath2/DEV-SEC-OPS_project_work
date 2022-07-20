@@ -11,11 +11,7 @@ locals {
   function_app_name             = "policycheckapp-vh"
   function_name                 = "policy-check"
 
-  # Common tags to be assigned to all resources
-  common_tags = {
-    terraform   = "true"
-    deployed_by = "Terraform_SP"
-  }
+  # Common tags will be taken over from 02_resources/main.tf
 }
 
 resource "random_string" "resource_code" {
