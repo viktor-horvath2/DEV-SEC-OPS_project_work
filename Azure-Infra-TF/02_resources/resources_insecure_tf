@@ -35,6 +35,10 @@ terraform {
       source  = "hashicorp/azurerm"
       version = "3.9.0"
     }
+    curl = {
+      source = "anschoewe/curl"
+      version = "1.0.2"
+    }
   }
   
   backend "azurerm" {
@@ -216,4 +220,34 @@ resource "azurerm_linux_virtual_machine" "nginx" {
 
 output "public_IP_of_the_nginx_VM" {
   value       = "${azurerm_linux_virtual_machine.nginx.public_ip_address}"
+}
+
+# * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+#   Bastion related TF resources
+# * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+
+resource "azurerm_public_ip" "bastion-ip" {
+  name                = "bastion-ip"
+  location            = var.resource_region
+  resource_group_name = var.RG
+  allocation_method   = "Static"
+  sku                 = "Standard"
+
+  tags = local.common_tags
+  depends_on = [azurerm_resource_group.RG]
+}
+
+resource "azurerm_bastion_host" "bastion-host" {
+  name                = "bastion-host"
+  location            = var.resource_region
+  resource_group_name = var.RG
+  sku                 = "Basic"
+
+  ip_configuration {
+    name                 = "bastion-configuration"
+    subnet_id            = module.vnet.vnet_subnets.1
+    public_ip_address_id = azurerm_public_ip.bastion-ip.id
+  }
+
+  tags = local.common_tags
 }
