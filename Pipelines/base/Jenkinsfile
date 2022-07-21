@@ -113,11 +113,13 @@ pipeline { // base
                                 string(credentialsId: 'ARM_SUBSCRIPTION_ID', variable: 'ARM_SUBSCRIPTION_ID'),
                                 string(credentialsId: 'ARM_TENANT_ID', variable: 'ARM_TENANT_ID')]) {
                                     dir('Azure-Infra-TF/02_resources') {
-                                        sh script: '../../terraform apply s1.tfplan'
+                                        sh script: '''
+                                        ../../terraform apply s1.tfplan
+                                        ../../terraform output nginx-vm_private_key > ../../nginx-vm_private_key.pem
+                                        '''
                                     }
                                 }
             }
         }
-
     }
 }
